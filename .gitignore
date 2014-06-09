@@ -1,0 +1,11 @@
+bots-*.ini
+build/
+cache/
+development-*.ini
+dist/
+*.egg-info
+*.mo
+*.pyc
+*.pyo
+*~
+

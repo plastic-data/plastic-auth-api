@@ -316,6 +316,9 @@ def api1_new_account(req):
     hash_object = hashlib.sha256(salt.encode('utf-8'))
     hash_object.update(data['password'].encode('utf-8'))
     account = model.Account(
+        access_tokens = [
+            unicode(uuid.uuid4()),
+            ],
         blocked = data['blocked'],
         email = data['email'],
         email_verified = data['email'] and data['email_verified'],

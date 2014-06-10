@@ -55,6 +55,8 @@ def main():
     parser.add_argument('-p', '--password', help = "account password", required = True)
     parser.add_argument('-s', '--section', default = 'main',
         help = "Name of configuration section in configuration file")
+    parser.add_argument('-t', '--access-token', action = 'store_true', default = False,
+        help = "Add an access token to account")
     parser.add_argument('-v', '--verbose', action = 'store_true', default = False, help = "increase output verbosity")
     args = parser.parse_args()
     logging.basicConfig(level = logging.DEBUG if args.verbose else logging.WARNING, stream = sys.stdout)
@@ -87,11 +89,18 @@ def main():
         existing_account = model.Account.find_one(dict(url_name = url_name))
         assert existing_account is None, u'An account with name "{}" already exists'.format(url_name).encode('utf-8')
 
+    if args.access-token:
+        access_tokens = [
+            unicode(uuid.uuid4()),
+            ]
+    else:
+        access_tokens = None
     salt = conv.check(conv.make_bytes_to_base64url(remove_padding = True))(uuid.uuid4().bytes,
         state = ctx)
     hash_object = hashlib.sha256(salt.encode('utf-8'))
     hash_object.update(password.encode('utf-8'))
     account = model.Account(
+        access_tokens = access_tokens,
         blocked = args.block,
         email = email,
         email_verified = email is not None and args.email_verified,

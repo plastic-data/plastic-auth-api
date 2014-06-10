@@ -417,11 +417,6 @@ def api1_new_client(req):
                     )),
                 conv.not_none,
                 ),
-            password = conv.pipe(
-                conv.test_isinstance(basestring),
-                conv.cleanup_line,
-                conv.not_none,
-                ),
             ),
         )(inputs, state = ctx)
     if errors is not None:
@@ -444,16 +439,11 @@ def api1_new_client(req):
     account = handle_account_data_access_token(ctx, headers, account, data)
 
     access_token = unicode(uuid.uuid4())
-    salt = conv.check(conv.make_bytes_to_base64url(remove_padding = True))(uuid.uuid4().bytes, state = ctx)
-    hash_object = hashlib.sha256(salt.encode('utf-8'))
-    hash_object.update(data['password'].encode('utf-8'))
     client = model.Client(
         access_token = access_token,
         blocked = data['blocked'],
         name = data['name'],
         owner_id = account._id,
-        password_hexdigest = hash_object.hexdigest(),
-        salt = salt,
         )
     client.compute_url_name()
     changed = client.save(ctx, safe = True)
@@ -587,24 +577,6 @@ def handle_client_authorization_header(ctx, headers, required = False):
                     error = collections.OrderedDict(sorted(dict(
                         code = 401,  # Unauthorized
                         message = ctx._(u'Missing authorization header'),
-                        ).iteritems())),
-                    method = req.script_name,
-                    url = req.url.decode('utf-8'),
-                    ).iteritems())),
-                headers = headers,
-                )
-    elif authorization[0].lower() == 'basic':
-        client, error = conv.pipe(
-            model.Client.make_basic_authorization_to_instance(),
-            conv.not_none,
-            )(authorization[1], state = ctx)
-        if error is not None:
-            raise wsgihelpers.respond_json(ctx,
-                collections.OrderedDict(sorted(dict(
-                    apiVersion = '1.0',
-                    error = collections.OrderedDict(sorted(dict(
-                        code = 401,  # Unauthorized
-                        message = ctx._(u'Basic authentication error: {}').format(error),
                         ).iteritems())),
                     method = req.script_name,
                     url = req.url.decode('utf-8'),

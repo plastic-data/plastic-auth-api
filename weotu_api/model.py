@@ -177,10 +177,6 @@ class Client(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, obje
     blocked = False
     collection_name = 'clients'
     name = None
-    password_hexdigest = None
-    # Random string prepended to password before computing digest, to ensure that 2 users with the same password don't
-    # have the same digest.
-    salt = None
     owner_id = None
     url_name = None
 
@@ -221,44 +217,6 @@ class Client(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, obje
             return self, None
 
         return access_token_to_instance
-
-    @classmethod
-    def make_basic_authorization_to_instance(cls):
-        def basic_authorization_to_instance(value, state = None):
-            if value is None:
-                return value, None
-            if state is None:
-                state = conv.default_state
-            username_and_password, error = conv.pipe(
-                conv.base64_to_bytes,
-                conv.decode_str(encoding = 'utf-8'),
-                conv.not_none,
-                )(value, state = state)
-            if error is not None:
-                return username_and_password, error
-            username_password_couple = username_and_password.split(u':', 1)
-            if len(username_password_couple) < 2:
-                return username_password_couple, state._(u"Missing username and/or password")
-            self, error = conv.pipe(
-                conv.cleanup_line,
-                cls.make_str_to_instance(),
-                conv.not_none,
-                )(username_password_couple[0], state = state)
-            if error is not None:
-                return self, error
-            password, error = conv.pipe(
-                conv.cleanup_line,
-                conv.not_none,
-                )(username_password_couple[1], state = state)
-            if error is not None:
-                return password, state._(u"Password error: {}").format(error)
-            hash_object = hashlib.sha256(self.salt.encode('utf-8'))
-            hash_object.update(password.encode('utf-8'))
-            if self.password_hexdigest != hash_object.hexdigest():
-                return self, state._(u"Wrong password")
-            return self, None
-
-        return basic_authorization_to_instance
 
     @classmethod
     def make_str_to_instance(cls):
@@ -350,5 +308,5 @@ def setup():
     Account.ensure_index('url_name', sparse = True, unique = True)
 
     Client.ensure_index('access_token', unique = True)
-    Client.ensure_index('url_name', sparse = True, unique = True)
     Client.ensure_index('owner_id')
+    Client.ensure_index('url_name', unique = True)

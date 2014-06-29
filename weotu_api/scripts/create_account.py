@@ -28,6 +28,7 @@
 
 
 import argparse
+import datetime
 import hashlib
 import logging
 import os
@@ -49,14 +50,12 @@ def main():
     parser.add_argument('-b', '--block', action = 'store_true', default = False, help = "block account")
     parser.add_argument('-e', '--email', help = "account email")
     parser.add_argument('-f', '--full-name', help = "account full name")
-    parser.add_argument('-g', '--group', action = 'append', help = "title or id of group")
+#    parser.add_argument('-g', '--group', action = 'append', help = "title or id of group")
     parser.add_argument('-o', '--email-verified', action = 'store_true',
         default = False, help = "Mark email as valid (verified)")
     parser.add_argument('-p', '--password', help = "account password", required = True)
     parser.add_argument('-s', '--section', default = 'main',
         help = "Name of configuration section in configuration file")
-    parser.add_argument('-t', '--access-token', action = 'store_true', default = False,
-        help = "Add an access token to account")
     parser.add_argument('-v', '--verbose', action = 'store_true', default = False, help = "increase output verbosity")
     args = parser.parse_args()
     logging.basicConfig(level = logging.DEBUG if args.verbose else logging.WARNING, stream = sys.stdout)
@@ -66,16 +65,16 @@ def main():
     ctx = contexts.null_ctx
     email = conv.check(conv.input_to_email)(args.email, state = ctx)
     full_name = conv.check(conv.cleanup_line)(args.full_name, state = ctx)
-    groups = conv.check(conv.pipe(
-        conv.uniform_sequence(
-            conv.pipe(
-                conv.cleanup_line,
-                model.Group.make_str_to_instance(),
-                ),
-            drop_none_items = True,
-            ),
-        conv.empty_to_none,
-        ))(args.group, state = ctx)
+#    groups = conv.check(conv.pipe(
+#        conv.uniform_sequence(
+#            conv.pipe(
+#                conv.cleanup_line,
+#                model.Group.make_str_to_instance(),
+#                ),
+#            drop_none_items = True,
+#            ),
+#        conv.empty_to_none,
+#        ))(args.group, state = ctx)
     password = conv.check(conv.pipe(
         conv.cleanup_line,
         conv.not_none,
@@ -89,32 +88,32 @@ def main():
         existing_account = model.Account.find_one(dict(url_name = url_name))
         assert existing_account is None, u'An account with name "{}" already exists'.format(url_name).encode('utf-8')
 
-    if args.access-token:
-        access_tokens = [
-            unicode(uuid.uuid4()),
-            ]
-    else:
-        access_tokens = None
     salt = conv.check(conv.make_bytes_to_base64url(remove_padding = True))(uuid.uuid4().bytes,
         state = ctx)
     hash_object = hashlib.sha256(salt.encode('utf-8'))
     hash_object.update(password.encode('utf-8'))
     account = model.Account(
-        access_tokens = access_tokens,
         blocked = args.block,
         email = email,
-        email_verified = email is not None and args.email_verified,
+        email_verified = datetime.datetime.utcnow() if email is not None and args.email_verified else None,
         full_name = full_name,
-        groups_id = [
-            group._id
-            for group in groups
-            ] if groups is not None else None,
+#        groups_id = [
+#            group._id
+#            for group in groups
+#            ] if groups is not None else None,
         password_hexdigest = hash_object.hexdigest(),
         salt = salt,
         url_name = url_name,
         )
     account.save(ctx, safe = True)
 
+    access = model.Access(
+        account_id = account._id,
+        client_id = None,  # => client = Weotu-API
+        token = unicode(uuid.uuid4()),
+        )
+    access.save(ctx, safe = True)
+    print u'Account {0} main access token: {1}'.format(account.email, access.token).encode('utf-8')
     return 0
 
 

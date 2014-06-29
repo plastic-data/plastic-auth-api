@@ -288,6 +288,9 @@ class SmartWrapper(Wrapper):
     def before_compare(self, ctx, old_bson, bson):
         bson['draft_id'] = old_bson['draft_id']
 
+    def before_delete(self, ctx, old_bson):
+        pass
+
     def before_upsert(self, ctx, old_bson, bson):
         self.draft_id = bson['draft_id'] = objectid.ObjectId()
 
@@ -298,6 +301,7 @@ class SmartWrapper(Wrapper):
         old_bson = self.get_collection().find_one(id, as_class = collections.OrderedDict)
         if old_bson is not None:
             old_bson = dict(old_bson)
+            self.before_delete(ctx, old_bson)
             self.remove(id, *args, **kwargs)
             self.after_delete(ctx, old_bson)
         del self._id  # Mark as deleted.
@@ -342,6 +346,6 @@ class ActivityStreamWrapper(SmartWrapper):
 
     def before_upsert(self, ctx, old_bson, bson):
         super(ActivityStreamWrapper, self).before_upsert(ctx, old_bson, bson)
-        self.updated = bson['updated'] = updated = datetime.datetime.utcnow().isoformat() + 'Z'
+        self.updated = bson['updated'] = updated = datetime.datetime.utcnow()
         if self.published is None:
             self.published = bson['published'] = updated

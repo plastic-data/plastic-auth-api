@@ -26,6 +26,7 @@
 """The application's model objects"""
 
 
+import calendar
 import collections
 import hashlib
 
@@ -38,13 +39,60 @@ zmq_context = zmq.Context()
 zmq_sender = None
 
 
+class Access(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, objects.ActivityStreamWrapper):
+    account_id = None
+    blocked = False
+    client_id = None
+    collection_name = 'access'
+    token = None
+
+    @classmethod
+    def make_token_to_instance(cls):
+        def token_to_instance(value, state = None):
+            if value is None:
+                return value, None
+            if state is None:
+                state = conv.default_state
+            self = cls.find_one(
+                dict(
+                    token = value,
+                    ),
+                as_class = collections.OrderedDict,
+                )
+            if self is None:
+                return value, state._(u"No access with given token")
+            if self.blocked:
+                return self, state._(u"Access is blocked")
+            return self, None
+
+        return token_to_instance
+
+    def turn_to_json_attributes(self, state):
+        value, error = conv.object_to_clean_dict(self, state = state)
+        if error is not None:
+            return value, error
+        if value.get('account_id') is not None:
+            value['account_id'] = unicode(value['account_id'])
+        if value.get('client_id') is not None:
+            value['client_id'] = unicode(value['client_id'])
+        if value.get('draft_id') is not None:
+            value['draft_id'] = unicode(value['draft_id'])
+        id = value.pop('_id', None)
+        if id is not None:
+            value['id'] = unicode(id)
+        if value.get('published') is not None:
+            value['published'] = int(calendar.timegm(value['published'].timetuple()) * 1000)
+        if value.get('updated') is not None:
+            value['updated'] = int(calendar.timegm(value['updated'].timetuple()) * 1000)
+        return value, None
+
+
 class Account(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, objects.ActivityStreamWrapper):
-    access_tokens = None
-#    admin = False
+    admin = False
     blocked = False
     collection_name = 'accounts'
     email = None
-    email_verified = False
+    email_verified = None  # Datetime of last email verification
     full_name = None
     password_hexdigest = None
     # Random string prepended to password before computing digest, to ensure that 2 users with the same password don't
@@ -52,18 +100,9 @@ class Account(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, obj
     salt = None
     url_name = None
 
-    @classmethod
-    def bson_to_json(cls, value, state = None):
-        if value is None:
-            return value, None
-        value = value.copy()
-#        value.pop('access_tokens', None)
-        if value.get('draft_id') is not None:
-            value['draft_id'] = unicode(value['draft_id'])
-        id = value.pop('_id', None)
-        if id is not None:
-            value['id'] = unicode(id)
-        return value, None
+    def before_delete(self, ctx, old_bson):
+        for access in Access.find(dict(account_id = self._id), as_class = collections.OrderedDict):
+            access.delete(ctx)
 
     def compute_url_name(self):
         url_name = conv.check(conv.input_to_url_name)(self.full_name)
@@ -72,25 +111,6 @@ class Account(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, obj
                 del self.url_name
         else:
             self.url_name = url_name
-
-    @classmethod
-    def make_access_token_to_instance(cls):
-        def access_token_to_instance(value, state = None):
-            if value is None:
-                return value, None
-            if state is None:
-                state = conv.default_state
-            self = cls.find_one(
-                dict(
-                    access_tokens = value,
-                    ),
-                as_class = collections.OrderedDict,
-                )
-            if self is None:
-                return value, state._(u"No account with given access token")
-            return self, None
-
-        return access_token_to_instance
 
     @classmethod
     def make_basic_authorization_to_instance(cls):
@@ -163,60 +183,34 @@ class Account(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, obj
         value, error = conv.object_to_clean_dict(self, state = state)
         if error is not None:
             return value, error
-#        value.pop('access_tokens', None)
         if value.get('draft_id') is not None:
             value['draft_id'] = unicode(value['draft_id'])
+        if value.get('email_verified') is not None:
+            value['email_verified'] = int(calendar.timegm(value['email_verified'].timetuple()) * 1000)
         id = value.pop('_id', None)
         if id is not None:
             value['id'] = unicode(id)
+        value.pop('password_hexdigest', None)
+        value.pop('salt', None)
+        if value.get('published') is not None:
+            value['published'] = int(calendar.timegm(value['published'].timetuple()) * 1000)
+        if value.get('updated') is not None:
+            value['updated'] = int(calendar.timegm(value['updated'].timetuple()) * 1000)
         return value, None
 
 
 class Client(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, objects.ActivityStreamWrapper):
-    access_token = None
     blocked = False
+    can_authenticate = False  # Only clients managed by admins can authenticate users.
     collection_name = 'clients'
     name = None
     owner_id = None
-    url_name = None
+    symbol = None
+    token = None
 
-    @classmethod
-    def bson_to_json(cls, value, state = None):
-        if value is None:
-            return value, None
-        value = value.copy()
-        if value.get('draft_id') is not None:
-            value['draft_id'] = unicode(value['draft_id'])
-        id = value.pop('_id', None)
-        if id is not None:
-            value['id'] = unicode(id)
-        value['owner_id'] = unicode(value['owner_id'])
-        return value, None
-
-    def compute_url_name(self):
-        self.url_name = conv.check(conv.pipe(
-            conv.input_to_url_name,
-            conv.not_none,
-            ))(self.name)
-
-    @classmethod
-    def make_access_token_to_instance(cls):
-        def access_token_to_instance(value, state = None):
-            if value is None:
-                return value, None
-            if state is None:
-                state = conv.default_state
-            self = cls.find_one(
-                dict(
-                    access_token = value,
-                    ),
-                as_class = collections.OrderedDict,
-                )
-            if self is None:
-                return value, state._(u"No client with given access token")
-            return self, None
-
-        return access_token_to_instance
+    def before_delete(self, ctx, old_bson):
+        for access in Access.find(dict(client_id = self._id), as_class = collections.OrderedDict):
+            access.delete(ctx)
 
     @classmethod
     def make_str_to_instance(cls):
@@ -226,20 +220,35 @@ class Client(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, obje
             if state is None:
                 state = conv.default_state
             id, error = conv.str_to_object_id(value, state = state)
-            if id is not None and error is None:
-                self = cls.find_one(id, as_class = collections.OrderedDict)
-                if self is None:
-                    return id, state._(u"No client with given ID")
-            else:
-                url_name, error = conv.input_to_url_name(value, state = state)
-                if url_name is None or error is not None:
-                    return url_name, error
-                self = cls.find_one(dict(url_name = url_name), as_class = collections.OrderedDict)
-                if self is None:
-                    return url_name, state._(u"No client with given name")
+            if id is None or error is not None:
+                return id, error
+            self = cls.find_one(id, as_class = collections.OrderedDict)
+            if self is None:
+                return id, state._(u"No client with given ID")
             return self, None
 
         return str_to_instance
+
+    @classmethod
+    def make_token_to_instance(cls):
+        def token_to_instance(value, state = None):
+            if value is None:
+                return value, None
+            if state is None:
+                state = conv.default_state
+            self = cls.find_one(
+                dict(
+                    token = value,
+                    ),
+                as_class = collections.OrderedDict,
+                )
+            if self is None:
+                return value, state._(u"No client with given token")
+            if self.blocked:
+                return self, state._(u"Client is blocked")
+            return self, None
+
+        return token_to_instance
 
     def turn_to_json_attributes(self, state):
         value, error = conv.object_to_clean_dict(self, state = state)
@@ -251,6 +260,10 @@ class Client(objects.Initable, objects.JsonMonoClassMapper, objects.Mapper, obje
         if id is not None:
             value['id'] = unicode(id)
         value['owner_id'] = unicode(value['owner_id'])
+        if value.get('published') is not None:
+            value['published'] = int(calendar.timegm(value['published'].timetuple()) * 1000)
+        if value.get('updated') is not None:
+            value['updated'] = int(calendar.timegm(value['updated'].timetuple()) * 1000)
         return value, None
 
 
@@ -303,10 +316,27 @@ def setup():
                         upgrade_file.close()
                 upgrade_module.upgrade(status)
 
-    Account.ensure_index('access_tokens', unique = True)
-    Account.ensure_index('email', sparse = True, unique = True)
+    Access.ensure_index('account_id')
+    Access.ensure_index('client_id')
+    Access.ensure_index('token', unique = True)
+
+    Account.ensure_index('email', unique = True)
     Account.ensure_index('url_name', sparse = True, unique = True)
 
-    Client.ensure_index('access_token', unique = True)
     Client.ensure_index('owner_id')
-    Client.ensure_index('url_name', unique = True)
+    Client.ensure_index('symbol', sparse = True, unique = True)
+    Client.ensure_index('token', unique = True)
+
+    ctx = contexts.null_ctx
+
+    # Upsert UI client.
+    client = Client.find_one(dict(symbol = u'weotu-ui'), as_class = collections.OrderedDict)
+    if client is None:
+        client = Client(
+            can_authenticate = True,
+            name = conf['weotu_ui.name'],
+            symbol = u'weotu-ui',
+            token = unicode(uuid.uuid4()),
+            )
+    client.save(ctx, safe = True)
+    print u'{0} ({1}) client token: {2}'.format(client.name, client.symbol, client.token).encode('utf-8')

@@ -61,6 +61,7 @@ def load_environment(global_conf, app_conf):
                 ),
             'package_name': conv.default(u'weotu-api'),
             'realm': conv.default(u'Weotu API'),
+            'weotu_ui.name': conv.default(u'Weotu-UI'),
             'zmq_push_socket': conv.not_none,
             'zmq_sub_socket': conv.not_none,
             },

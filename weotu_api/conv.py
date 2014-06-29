@@ -26,25 +26,14 @@
 """Conversion functions"""
 
 
-import re
-
 from biryani1.base64conv import *
 from biryani1.baseconv import *
 from biryani1.bsonconv import *
 from biryani1.datetimeconv import *
-from biryani1.objectconv import *
 from biryani1.jsonconv import *
+from biryani1.objectconv import *
 from biryani1.states import default_state, State
-
-
-N_ = lambda message: message
-uuid_re = re.compile(ur'[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$')
-
-
-input_to_uuid = pipe(
-    cleanup_line,
-    test(uuid_re.match, error = N_(u'Invalid UUID format')),
-    )
+from biryani1.uuidconv import *
 
 
 def method(method_name, *args, **kwargs):

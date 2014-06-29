@@ -73,7 +73,7 @@ def main():
 
     while True:
         address, content = zmq_receiver.recv_multipart()
-        print address, content
+        log.info('{} {}'.format(address, content))
         zmq_publisher.send_multipart([address, content])
 
     return 0

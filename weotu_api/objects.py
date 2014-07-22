@@ -279,19 +279,19 @@ class Wrapper(object):
 class SmartWrapper(Wrapper):
     draft_id = None
 
-    def after_delete(self, ctx, old_bson):
+    def after_delete(self, ctx, old_bson, *args, **kwargs):
         pass
 
-    def after_upsert(self, ctx, old_bson, bson):
+    def after_upsert(self, ctx, old_bson, bson, *args, **kwargs):
         pass
 
     def before_compare(self, ctx, old_bson, bson):
         bson['draft_id'] = old_bson['draft_id']
 
-    def before_delete(self, ctx, old_bson):
+    def before_delete(self, ctx, old_bson, *args, **kwargs):
         pass
 
-    def before_upsert(self, ctx, old_bson, bson):
+    def before_upsert(self, ctx, old_bson, bson, *args, **kwargs):
         self.draft_id = bson['draft_id'] = objectid.ObjectId()
 
     def delete(self, ctx, *args, **kwargs):
@@ -301,9 +301,9 @@ class SmartWrapper(Wrapper):
         old_bson = self.get_collection().find_one(id, as_class = collections.OrderedDict)
         if old_bson is not None:
             old_bson = dict(old_bson)
-            self.before_delete(ctx, old_bson)
+            self.before_delete(ctx, old_bson, *args, **kwargs)
             self.remove(id, *args, **kwargs)
-            self.after_delete(ctx, old_bson)
+            self.after_delete(ctx, old_bson, *args, **kwargs)
         del self._id  # Mark as deleted.
         return id
 
@@ -323,11 +323,11 @@ class SmartWrapper(Wrapper):
                 self.before_compare(ctx, old_bson, bson)
                 if bson == old_bson:
                     return False
-        self.before_upsert(ctx, old_bson, bson)
+        self.before_upsert(ctx, old_bson, bson, *args, **kwargs)
         collection.save(bson, *args, **kwargs)
         if id is None:
             self._id = bson['_id']
-        self.after_upsert(ctx, old_bson, bson)
+        self.after_upsert(ctx, old_bson, bson, *args, **kwargs)
         return True
 
 
@@ -344,8 +344,8 @@ class ActivityStreamWrapper(SmartWrapper):
         bson['published'] = old_bson['published']
         bson['updated'] = old_bson['updated']
 
-    def before_upsert(self, ctx, old_bson, bson):
-        super(ActivityStreamWrapper, self).before_upsert(ctx, old_bson, bson)
+    def before_upsert(self, ctx, old_bson, bson, *args, **kwargs):
+        super(ActivityStreamWrapper, self).before_upsert(ctx, old_bson, bson, *args, **kwargs)
         self.updated = bson['updated'] = updated = datetime.datetime.utcnow()
         if self.published is None:
             self.published = bson['published'] = updated

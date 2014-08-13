@@ -526,7 +526,6 @@ def api1_new_client(req):
                     conv.test_isinstance(basestring),
                     conv.input_to_uuid_str,
                     model.Access.make_token_to_instance(),
-                    conv.not_none,
                     ),
                 blocked = conv.pipe(
                     conv.test_isinstance((bool, int)),
@@ -551,8 +550,16 @@ def api1_new_client(req):
         )(inputs, state = ctx)
     if errors is None:
         access = data['access']
+        account = None
         client = data['client']
-        if (access.client_id is None if client is None else access.client_id == client._id):
+        if access is None:
+            data, errors = conv.struct(
+                dict(
+                    client = conv.not_none,
+                    ),
+                default = conv.noop,
+                )(data, state = ctx)
+        elif (access.client_id is None if client is None else access.client_id == client._id):
             account = model.Account.find_one(access.account_id, as_class = collections.OrderedDict)
             if account is None:
                 errors = dict(access_token = ctx._(u"No account with given access"))
@@ -580,7 +587,7 @@ def api1_new_client(req):
     client = model.Client(
         blocked = data['blocked'],
         name = data['name'],
-        owner_id = account._id,
+        owner_id = (account or client)._id,
         token = unicode(uuid.uuid4()),
         )
     changed = client.save(ctx, safe = True)

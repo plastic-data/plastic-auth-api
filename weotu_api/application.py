@@ -23,28 +23,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-"""Middleware initialization"""
+"""WSGI application initialization"""
 
 
-import webob
-from weberror.errormiddleware import ErrorMiddleware
+from suq1 import middlewares
 
-from . import conf, contexts, controllers, environment, model, urls
-
-
-def environment_setter(app):
-    """WSGI middleware that sets request-dependant environment."""
-    def set_environment(environ, start_response):
-        req = webob.Request(environ)
-        urls.application_url = req.application_url
-        ctx = contexts.Ctx(req)
-        model.configure(ctx)
-        try:
-            return app(req.environ, start_response)
-        except webob.exc.WSGIHTTPException as wsgi_exception:
-            return wsgi_exception(environ, start_response)
-
-    return set_environment
+from . import controllers, environment
 
 
 def make_app(global_conf, **app_conf):
@@ -65,13 +49,4 @@ def make_app(global_conf, **app_conf):
     # Dispatch request to controllers.
     app = controllers.make_router()
 
-    # Init request-dependant environment
-    app = environment_setter(app)
-
-    # CUSTOM MIDDLEWARE HERE (filtered by error handling middlewares)
-
-    # Handle Python exceptions
-    if not conf['debug']:
-        app = ErrorMiddleware(app, global_conf, **conf['errorware'])
-
-    return app
+    return middlewares.wrap_app(app)

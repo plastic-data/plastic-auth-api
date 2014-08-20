@@ -26,19 +26,5 @@
 """Conversion functions"""
 
 
-from biryani1.base64conv import *
-from biryani1.baseconv import *
-from biryani1.bsonconv import *
-from biryani1.datetimeconv import *
-from biryani1.jsonconv import *
-from biryani1.objectconv import *
-from biryani1.states import default_state, State
-from biryani1.uuidconv import *
+from suq1.conv import *
 
-
-def method(method_name, *args, **kwargs):
-    def method_converter(value, state = None):
-        if value is None:
-            return value, None
-        return getattr(value, method_name)(state or default_state, *args, **kwargs)
-    return method_converter

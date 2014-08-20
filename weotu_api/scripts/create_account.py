@@ -105,6 +105,7 @@ def main():
         salt = salt,
         url_name = url_name,
         )
+    account.compute_attributes()
     account.save(ctx, safe = True)
 
     access = model.Access(

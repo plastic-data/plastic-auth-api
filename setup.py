@@ -68,6 +68,7 @@ setup(
         'Biryani1 >= 0.9dev',
 #        'pymongo >= 2.2',
         'pyzmq >= 14.3',
+        'Suq1 >= 0.1dev',
         'WebError >= 0.10',
         'WebOb >= 1.1',
         'ws4py >= 0.3.2',

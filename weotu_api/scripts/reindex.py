@@ -24,17 +24,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-"""Setup application (Create indexes, launch upgrade scripts, etc)."""
+"""Reindex objects."""
 
 
 import argparse
+import collections
 import logging
 import os
 import sys
 
 import paste.deploy
 
-from weotu_api import environment
+from weotu_api import contexts, environment, model
 
 
 app_name = os.path.splitext(os.path.basename(__file__))[0]
@@ -43,17 +44,31 @@ log = logging.getLogger(app_name)
 
 def main():
     parser = argparse.ArgumentParser(description = __doc__)
-    parser.add_argument('config', help = "path of Weotu-API configuration file")
-    parser.add_argument('-d', '--drop-indexes', action = 'store_true', default = False,
-        help = "Remove existing indexes before reindexing")
+    parser.add_argument('config', help = "CKAN-of-Worms configuration file")
+    parser.add_argument('-a', '--all', action = 'store_true', default = False, help = "reindex everything")
+    parser.add_argument('-c', '--client', action = 'store_true', default = False, help = "reindex clients")
     parser.add_argument('-s', '--section', default = 'main',
         help = "Name of configuration section in configuration file")
+    parser.add_argument('-u', '--user', action = 'store_true', default = False, help = "reindex accounts")
     parser.add_argument('-v', '--verbose', action = 'store_true', default = False, help = "increase output verbosity")
     args = parser.parse_args()
     logging.basicConfig(level = logging.DEBUG if args.verbose else logging.WARNING, stream = sys.stdout)
     site_conf = paste.deploy.appconfig('config:{0}#{1}'.format(os.path.abspath(args.config), args.section))
     environment.load_environment(site_conf.global_conf, site_conf.local_conf)
-    environment.setup_environment(drop_indexes = args.drop_indexes)
+
+    ctx = contexts.null_ctx
+
+    if args.all or args.client:
+        for client in model.Client.find(as_class = collections.OrderedDict):
+            client.compute_attributes()
+            if client.save(ctx, safe = False):
+                log.info(u'Updated client: {} - {}'.format(client._id, client.name))
+
+    if args.all or args.user:
+        for account in model.Account.find(as_class = collections.OrderedDict):
+            account.compute_attributes()
+            if account.save(ctx, safe = False):
+                log.info(u'Updated account: {} - {} <{}>'.format(account._id, account.full_name, account.email))
 
     return 0
 

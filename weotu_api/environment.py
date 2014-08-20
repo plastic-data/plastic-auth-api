@@ -26,7 +26,6 @@
 """Environment configuration"""
 
 
-import importlib
 import logging
 import os
 import sys
@@ -35,7 +34,7 @@ from biryani1 import strings
 import pymongo
 
 import weotu_api
-from . import conv, model
+from . import contexts, conv, model
 
 
 app_dir = os.path.dirname(os.path.abspath(__file__))
@@ -81,13 +80,18 @@ def load_environment(global_conf, app_conf):
         errorware['from_address'] = conf['from_address']
         errorware['smtp_server'] = conf.get('smtp_server', 'localhost')
 
-    # Load MongoDB database and initializa ZMQ.
-    db = pymongo.Connection()[conf['database']]
-    model.init(db)
+    components = dict(
+        conf = conf,
+        contexts = contexts,
+        conv = conv,
+        db = pymongo.Connection()[conf['database']],
+        model = model,
+        )
+    model.init(components)
 
 
-def setup_environment():
+def setup_environment(drop_indexes = False):
     """Setup the application environment (after it has been loaded)."""
 
     # Setup MongoDB database.
-    model.setup()
+    model.setup(drop_indexes = drop_indexes)

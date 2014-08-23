@@ -69,7 +69,7 @@ def main():
 #        conv.uniform_sequence(
 #            conv.pipe(
 #                conv.cleanup_line,
-#                model.Group.make_str_to_instance(),
+#                model.Group.str_to_instance,
 #                ),
 #            drop_none_items = True,
 #            ),

@@ -109,7 +109,7 @@ def api1_authenticate(req):
                 relying_party_id = conv.pipe(
                     conv.test_isinstance(basestring),
                     conv.cleanup_line,
-                    model.Client.make_str_to_instance(),
+                    model.Client.str_to_instance,
                     conv.not_none,
                     ),
                 state = conv.pipe(

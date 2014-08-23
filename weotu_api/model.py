@@ -73,7 +73,7 @@ class Account(accesses.Account):
                 return username_password_couple, state._(u"Missing username and/or password")
             self, error = conv.pipe(
                 conv.cleanup_line,
-                cls.make_str_to_instance(),
+                cls.str_to_instance,
                 conv.not_none,
                 )(username_password_couple[0], state = state)
             if error is not None:

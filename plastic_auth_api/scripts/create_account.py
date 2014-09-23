@@ -2,20 +2,20 @@
 # -*- coding: utf-8 -*-
 
 
-# Weotu -- Accounts & authentication API
+# Plastic-Auth -- Accounts & authentication API
 # By: Emmanuel Raviart <emmanuel@raviart.com>
 #
 # Copyright (C) 2014 Emmanuel Raviart
-# https://gitorious.org/weotu
+# https://github.com/plastic-data/plastic-auth-api
 #
-# This file is part of Weotu.
+# This file is part of Plastic-Auth.
 #
-# Weotu is free software; you can redistribute it and/or modify
+# Plastic-Auth is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version.
 #
-# Weotu is distributed in the hope that it will be useful,
+# Plastic-Auth is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
@@ -37,7 +37,7 @@ import uuid
 
 import paste.deploy
 
-from weotu_api import contexts, conv, environment, model
+from plastic_auth_api import contexts, conv, environment, model
 
 
 app_name = os.path.splitext(os.path.basename(__file__))[0]
@@ -46,7 +46,7 @@ log = logging.getLogger(app_name)
 
 def main():
     parser = argparse.ArgumentParser(description = __doc__)
-    parser.add_argument('config', help = "path of Weotu-API configuration file")
+    parser.add_argument('config', help = "path of Plastic-Auth-API configuration file")
     parser.add_argument('-b', '--block', action = 'store_true', default = False, help = "block account")
     parser.add_argument('-e', '--email', help = "account email")
     parser.add_argument('-f', '--full-name', help = "account full name")
@@ -110,7 +110,7 @@ def main():
 
     access = model.Access(
         account_id = account._id,
-        client_id = None,  # => client = Weotu-API
+        client_id = None,  # => client = Plastic-Auth-API
         token = unicode(uuid.uuid4()),
         )
     access.save(ctx, safe = True)

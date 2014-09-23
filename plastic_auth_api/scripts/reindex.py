@@ -2,20 +2,20 @@
 # -*- coding: utf-8 -*-
 
 
-# Weotu -- Accounts & authentication API
+# Plastic-Auth -- Accounts & authentication API
 # By: Emmanuel Raviart <emmanuel@raviart.com>
 #
 # Copyright (C) 2014 Emmanuel Raviart
-# https://gitorious.org/weotu
+# https://github.com/plastic-data/plastic-auth-api
 #
-# This file is part of Weotu.
+# This file is part of Plastic-Auth.
 #
-# Weotu is free software; you can redistribute it and/or modify
+# Plastic-Auth is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version.
 #
-# Weotu is distributed in the hope that it will be useful,
+# Plastic-Auth is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
@@ -24,7 +24,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-"""Remove token from clients and create an access with this token for this client."""
+"""Reindex objects."""
 
 
 import argparse
@@ -35,7 +35,7 @@ import sys
 
 import paste.deploy
 
-from weotu_api import contexts, environment, model
+from plastic_auth_api import contexts, environment, model
 
 
 app_name = os.path.splitext(os.path.basename(__file__))[0]
@@ -45,51 +45,33 @@ log = logging.getLogger(app_name)
 def main():
     parser = argparse.ArgumentParser(description = __doc__)
     parser.add_argument('config', help = "CKAN-of-Worms configuration file")
+    parser.add_argument('-a', '--all', action = 'store_true', default = False, help = "reindex everything")
+    parser.add_argument('-c', '--client', action = 'store_true', default = False, help = "reindex clients")
     parser.add_argument('-s', '--section', default = 'main',
         help = "Name of configuration section in configuration file")
+    parser.add_argument('-u', '--user', action = 'store_true', default = False, help = "reindex accounts")
     parser.add_argument('-v', '--verbose', action = 'store_true', default = False, help = "increase output verbosity")
     args = parser.parse_args()
     logging.basicConfig(level = logging.DEBUG if args.verbose else logging.WARNING, stream = sys.stdout)
     site_conf = paste.deploy.appconfig('config:{0}#{1}'.format(os.path.abspath(args.config), args.section))
     environment.load_environment(site_conf.global_conf, site_conf.local_conf)
 
-    status = model.Status.find_one()
-    if status is None:
-        status = model.Status()
-    upgrade(status)
+    ctx = contexts.null_ctx
+
+    if args.all or args.client:
+        for client in model.Client.find(as_class = collections.OrderedDict):
+            client.compute_attributes()
+            if client.save(ctx, safe = False):
+                log.info(u'Updated client: {} - {}'.format(client._id, client.name))
+
+    if args.all or args.user:
+        for account in model.Account.find(as_class = collections.OrderedDict):
+            account.compute_attributes()
+            if account.save(ctx, safe = False):
+                log.info(u'Updated account: {} - {} <{}>'.format(account._id, account.full_name, account.email))
 
     return 0
 
 
-def upgrade(status):
-    ctx = contexts.null_ctx
-
-    for index_name in ('token_1',):
-        if index_name in model.Client.index_information():
-            model.Client.drop_index(index_name)
-
-    for client in model.Client.find(dict(token = {'$exists': True}), as_class = collections.OrderedDict):
-        access = model.Access.find_one(dict(token = client.token), as_class = collections.OrderedDict)
-        if access is None:
-            access = model.Access(
-                client_id = client._id,
-                token = client.token,
-                )
-            access.save(ctx, safe = True)
-        else:
-            assert access.client_id == client._id
-
-        del client.token
-        client.compute_attributes()
-        client.save(ctx, safe = True)
-        log.info(u'Extracted access from client {0} ({1}). Access token: {2}'.format(client.name, client.symbol,
-            access.token))
-
-    if status.last_upgrade_name is None or status.last_upgrade_name < app_name:
-        status.last_upgrade_name = app_name
-        status.save()
-
-
 if __name__ == "__main__":
     sys.exit(main())
-

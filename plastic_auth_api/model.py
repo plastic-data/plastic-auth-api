@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 
 
-# Weotu -- Accounts & authentication API
+# Plastic-Auth -- Accounts & authentication API
 # By: Emmanuel Raviart <emmanuel@raviart.com>
 #
 # Copyright (C) 2014 Emmanuel Raviart
-# https://gitorious.org/weotu
+# https://github.com/plastic-data/plastic-auth-api
 #
-# This file is part of Weotu.
+# This file is part of Plastic-Auth.
 #
-# Weotu is free software; you can redistribute it and/or modify
+# Plastic-Auth is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version.
 #
-# Weotu is distributed in the hope that it will be useful,
+# Plastic-Auth is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
@@ -132,7 +132,7 @@ def setup(drop_indexes = False):
     ctx = contexts.null_ctx
 
     # Upsert UI client.
-    access = Client.upsert_with_access(ctx, conf['weotu_ui.name'], u'weotu-ui')
+    access = Client.upsert_with_access(ctx, conf['plastic_auth_ui.name'], u'plastic-auth-ui')
     print u'Client {0} ({1}). Access token: {2}'.format(access.client.name, access.client.symbol, access.token).encode(
         'utf-8')
 

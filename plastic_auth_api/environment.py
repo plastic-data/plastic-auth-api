@@ -58,6 +58,11 @@ def load_environment(global_conf, app_conf):
                 conv.default('WARNING'),
                 conv.function(lambda log_level: getattr(logging, log_level.upper())),
                 ),
+            'mongodb_address': conv.default('localhost'),
+            'mongodb_port': conv.pipe(
+                conv.input_to_int,
+                conv.default(27017),
+                ),
             'package_name': conv.default(u'plastic-auth-api'),
             'realm': conv.default(u'Plastic-Auth API'),
             'plastic_auth_ui.name': conv.default(u'Plastic-Auth-UI'),
@@ -84,7 +89,7 @@ def load_environment(global_conf, app_conf):
         conf = conf,
         contexts = contexts,
         conv = conv,
-        db = pymongo.Connection()[conf['database']],
+        db = pymongo.Connection(conf['mongodb_address'], conf['mongodb_port'])[conf['database']],
         model = model,
         )
     model.init(components)
